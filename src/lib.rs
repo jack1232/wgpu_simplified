@@ -5,6 +5,60 @@ use cgmath::*;
 
 #[rustfmt::skip]
 #[allow(unused)]
+
+// region: bind groups
+
+pub fn create_bind_group_layout(
+    device: &wgpu::Device, 
+    shader_stages: Vec<wgpu::ShaderStages>
+) -> wgpu::BindGroupLayout {
+    let mut entries = vec![];
+    
+    for i in 0..shader_stages.len() {
+        entries.push(wgpu::BindGroupLayoutEntry {
+            binding: i as u32,
+            visibility: shader_stages[i],
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        });
+    }
+    
+    device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor{
+        entries: &entries,
+        label: Some("Uniform Bind Group Layout"),
+    })
+}
+
+pub fn create_bind_group(
+    device: &wgpu::Device,
+    shader_stages: Vec<wgpu::ShaderStages>,
+    resources: &[wgpu::BindingResource<'_>]
+) -> ( wgpu::BindGroupLayout, wgpu::BindGroup) {
+    let entries: Vec<_> = resources.iter().enumerate().map(|(i, resource)| {
+        wgpu::BindGroupEntry {
+            binding: i as u32,
+            resource: resource.clone(),
+        }
+    }).collect();
+
+    let layout = create_bind_group_layout(device, shader_stages);
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        layout: &layout,
+        entries: &entries,
+        label: Some("Uniform Bind Group"),
+    });
+
+    (layout, bind_group)
+}
+
+// endregion: bind groups
+
+
+// region: tranformation
 pub const OPENGL_TO_WGPU_MATRIX: Matrix4<f32> = Matrix4::new(
     1.0, 0.0, 0.0, 0.0,
     0.0, 1.0, 0.0, 0.0,
@@ -85,6 +139,10 @@ pub fn create_projection_ortho(left: f32, right: f32, bottom: f32, top: f32, nea
     OPENGL_TO_WGPU_MATRIX * ortho(left, right, bottom, top, near, far)    
 }
 
+// endregion: tranformation
+
+
+// region: views and attachments
 pub fn create_color_attachment<'a>(texture_view: &'a wgpu::TextureView) -> wgpu::RenderPassColorAttachment<'a> {
     wgpu::RenderPassColorAttachment {
         view: texture_view,
@@ -157,6 +215,10 @@ pub fn create_depth_stencil_attachment<'a>(depth_view: &'a wgpu::TextureView) ->
     }
 }
 
+// endregion: views and attachments
+
+
+// region: pipelines
 pub struct IRenderPipeline<'a> {
     pub shader: Option<&'a wgpu::ShaderModule>,
     pub vs_shader: Option<&'a wgpu::ShaderModule>,
@@ -235,7 +297,10 @@ impl IRenderPipeline<'_> {
     }   
 }
 
+// endregion: pipelines
 
+
+// region: wgpu initialization
 pub struct IWgpuInit {
     pub instance: wgpu::Instance,
     pub surface: wgpu::Surface,
@@ -315,3 +380,4 @@ impl IWgpuInit {
     }
 }
 
+// endregion: wgpu initialization
