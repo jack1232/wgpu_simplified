@@ -7,4 +7,6 @@ edition = "2021"
 wgpu = "0.17.1"
 winit = "0.28" 
 cgmath = "0.18"
+anyhow = "1.0"
+image = "0.23"
 

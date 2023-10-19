@@ -2,11 +2,146 @@ use winit::window::Window;
 //use std::path::PathBuf;
 use std::f32::consts::PI;
 use cgmath::*;
+mod texture_data;
 
 #[rustfmt::skip]
 #[allow(unused)]
 
+
 // region: bind groups
+fn create_texture_bind_group_layout(
+    device: &wgpu::Device, 
+    img_files:Vec<&str>
+) -> wgpu::BindGroupLayout {
+    let mut entries:Vec<wgpu::BindGroupLayoutEntry> = vec![];
+    for i in 0..img_files.len() {
+        entries.push( wgpu::BindGroupLayoutEntry {
+            binding: (2*i) as u32,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Texture {
+                multisampled: false,
+                view_dimension: wgpu::TextureViewDimension::D2,
+                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+            },
+            count: None,
+        });
+        entries.push(wgpu::BindGroupLayoutEntry {
+            binding: (2*i+1) as u32,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+            count: None,
+        })
+    }
+
+    device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        entries: &entries,
+        label: Some("texture_bind_group_layout"),
+    })
+}
+
+pub fn create_texture_store_bind_group(
+    device: &wgpu::Device, 
+    store_texture: &texture_data::ITexture
+) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
+    let layout = create_texture_bind_group_layout(device, vec!["None"]);
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor{
+        layout: &layout,
+        label: Some("texture_bind_group"),
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&store_texture.view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(&store_texture.sampler),
+            },
+        ]
+    });
+    (layout, bind_group)
+}
+
+pub fn create_texture_bind_group(
+    device: &wgpu::Device, 
+    queue: &wgpu::Queue, 
+    img_files:Vec<&str>,
+    u_mode:wgpu::AddressMode, 
+    v_mode:wgpu::AddressMode
+) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
+    let mut img_textures:Vec<texture_data::ITexture> = vec![];
+    let mut entries:Vec<wgpu::BindGroupEntry<'_>> = vec![];
+    for i in 0..img_files.len() {
+        img_textures.push(texture_data::ITexture::create_texture_data(device, queue, img_files[i], u_mode, v_mode).unwrap());
+    }
+    for i in 0..img_files.len() {
+        entries.push( wgpu::BindGroupEntry {
+            binding: (2*i) as u32,
+            resource: wgpu::BindingResource::TextureView(&img_textures[i].view),
+        });
+        entries.push( wgpu::BindGroupEntry {
+            binding: (2*i + 1) as u32,
+            resource: wgpu::BindingResource::Sampler(&img_textures[i].sampler),
+        })
+    }
+   
+    let layout = create_texture_bind_group_layout(device, img_files);
+    
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor{
+        layout: &layout,
+        label: Some("texture_bind_group"),
+        entries: &entries
+    });
+    (layout, bind_group)
+}
+
+pub fn create_bind_group_layout_storage(
+    device: &wgpu::Device, 
+    shader_stages: Vec<wgpu::ShaderStages>, 
+    binding_types: Vec<wgpu::BufferBindingType>
+) -> wgpu::BindGroupLayout {
+    let mut entries = vec![];
+    
+    for i in 0..shader_stages.len() {
+        entries.push(wgpu::BindGroupLayoutEntry {
+            binding: i as u32,
+            visibility: shader_stages[i],
+            ty: wgpu::BindingType::Buffer {
+                ty: binding_types[i],
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        });
+    }
+    
+    device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor{
+        entries: &entries,
+        label: Some("Uniform Bind Group Layout"), 
+    })
+}
+
+pub fn create_bind_group_storage(
+    device: &wgpu::Device,
+    shader_stages: Vec<wgpu::ShaderStages>,
+    binding_types: Vec<wgpu::BufferBindingType>,
+    resources: &[wgpu::BindingResource<'_>]
+) -> ( wgpu::BindGroupLayout, wgpu::BindGroup) {
+    let entries: Vec<_> = resources.iter().enumerate().map(|(i, resource)| {
+        wgpu::BindGroupEntry {
+            binding: i as u32,
+            resource: resource.clone(),
+        }
+    }).collect();
+
+    let layout = create_bind_group_layout_storage(device, shader_stages, binding_types);
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        layout: &layout,
+        entries: &entries,
+        label: Some("Uniform Bind Group"), 
+    });
+
+    (layout, bind_group)
+}
 
 pub fn create_bind_group_layout(
     device: &wgpu::Device, 
@@ -143,6 +278,25 @@ pub fn create_projection_ortho(left: f32, right: f32, bottom: f32, top: f32, nea
 
 
 // region: views and attachments
+pub fn create_shadow_texture_view(init: &IWgpuInit, width:u32, height:u32) -> wgpu::TextureView {
+    let shadow_depth_texture = init.device.create_texture(&wgpu::TextureDescriptor {
+        size: wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: init.sample_count,
+        dimension: wgpu::TextureDimension::D2,
+        format:wgpu::TextureFormat::Depth24Plus,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+        label: None,
+        view_formats: &[],
+    });
+
+    shadow_depth_texture.create_view(&wgpu::TextureViewDescriptor::default())
+}
+
 pub fn create_color_attachment<'a>(texture_view: &'a wgpu::TextureView) -> wgpu::RenderPassColorAttachment<'a> {
     wgpu::RenderPassColorAttachment {
         view: texture_view,
