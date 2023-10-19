@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 wgpu = "0.17.1"
 winit = "0.28" 
+cgmath = "0.18"
 
