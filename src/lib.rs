@@ -1,4 +1,6 @@
 use winit::window::Window;
+use std::collections::VecDeque;
+use std::time::{Instant, Duration};
 //use std::path::PathBuf;
 use std::f32::consts::PI;
 use cgmath::*;
@@ -7,6 +9,49 @@ mod texture_data;
 #[rustfmt::skip]
 #[allow(unused)]
 
+// region: framerate
+
+#[derive(Debug)]
+pub struct FpsCounter {
+    last_second_frames: VecDeque<Instant>,
+    last_print_time: Instant,
+}
+
+impl Default for FpsCounter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl FpsCounter {
+    // Creates a new FpsCounter.
+    pub fn new() -> Self {
+        Self {
+            last_second_frames: VecDeque::with_capacity(128),
+            last_print_time: Instant::now(),
+        }
+    }
+
+    // updates the fps counter and print fps.
+    pub fn print_fps(&mut self, interval:u64) {
+        let now = Instant::now();
+        let a_second_ago = now - Duration::from_secs(1);
+
+        while self.last_second_frames.front().map_or(false, |t| *t < a_second_ago) {
+            self.last_second_frames.pop_front();
+        }
+        self.last_second_frames.push_back(now);
+
+        // Check if the interval seconds have passed since the last print time
+        if now - self.last_print_time >= Duration::from_secs(interval) {
+            let fps = self.last_second_frames.len();
+            println!("FPS: {}", fps);
+            self.last_print_time = now;
+        }
+    }
+}
+
+// endregion: framerate
 
 // region: bind groups
 fn create_texture_bind_group_layout(
@@ -116,7 +161,7 @@ pub fn create_bind_group_layout_storage(
     
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor{
         entries: &entries,
-        label: Some("Uniform Bind Group Layout"), 
+        label: Some("Bind Group Layout"), 
     })
 }
 
@@ -137,7 +182,7 @@ pub fn create_bind_group_storage(
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
         layout: &layout,
         entries: &entries,
-        label: Some("Uniform Bind Group"), 
+        label: Some("Bind Group"), 
     });
 
     (layout, bind_group)
