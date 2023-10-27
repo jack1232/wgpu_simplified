@@ -1,15 +1,16 @@
 use winit::window::Window;
-use std::collections::VecDeque;
+use std::collections::{VecDeque, HashMap};
 use std::time::{Instant, Duration};
 //use std::path::PathBuf;
 use std::f32::consts::PI;
 use cgmath::*;
+use rand::{SeedableRng, rngs::StdRng,distributions::{Distribution, Uniform}};
 mod texture_data;
 
 #[rustfmt::skip]
 #[allow(unused)]
 
-// region: framerate
+// region: utility
 
 #[derive(Debug)]
 pub struct FpsCounter {
@@ -51,7 +52,45 @@ impl FpsCounter {
     }
 }
 
-// endregion: framerate
+pub fn colormap_selection_map(n: u32) -> Option<String> {
+    let mut colormap_select = HashMap::new();
+    colormap_select.insert(0, "jet".to_string());
+    colormap_select.insert(1, "hsv".to_string());
+    colormap_select.insert(2, "hot".to_string());
+    colormap_select.insert(3, "cool".to_string());
+    colormap_select.insert(4, "spring".to_string());
+    colormap_select.insert(5, "summer".to_string());
+    colormap_select.insert(6, "autumn".to_string());
+    colormap_select.insert(7, "winter".to_string());
+    colormap_select.insert(8, "bone".to_string());
+    colormap_select.insert(9, "cooper".to_string());
+    colormap_select.insert(10, "greys".to_string());
+    colormap_select.insert(11, "rainbow".to_string());
+    colormap_select.insert(12, "rainbow_soft".to_string());
+    colormap_select.insert(13, "white".to_string());
+    colormap_select.insert(14, "black".to_string());
+    colormap_select.insert(15, "red".to_string());
+    colormap_select.insert(16, "green".to_string());
+    colormap_select.insert(17, "blue".to_string());
+    colormap_select.insert(18, "yellow".to_string());
+    colormap_select.insert(19, "cyan".to_string());
+    colormap_select.insert(20, "fuchsia".to_string());
+    colormap_select.insert(21, "terrain".to_string());
+    colormap_select.insert(22, "ocean".to_string());
+    colormap_select.get(&n).cloned()
+}
+
+pub fn round_to_multiple(any_number: u32, rounded_number: u32) -> u32 {
+    num::integer::div_ceil(any_number, rounded_number) * rounded_number
+}
+
+pub fn seed_random_number(seed:u64) -> f32 {
+    let mut rng: StdRng = SeedableRng::seed_from_u64(seed);
+    let distribution = Uniform::new(0.0, 1.0);
+    distribution.sample(&mut rng) as f32
+}
+
+// endregion: utility
 
 // region: bind groups
 fn create_texture_bind_group_layout(

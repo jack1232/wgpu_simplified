@@ -9,4 +9,6 @@ winit = "0.28"
 cgmath = "0.18"
 anyhow = "1.0"
 image = "0.23"
+rand = "0.8"
+num = "0.4"
 
