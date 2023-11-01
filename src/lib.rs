@@ -93,6 +93,44 @@ pub fn seed_random_number(seed:u64) -> f32 {
 // endregion: utility
 
 // region: bind groups
+fn create_compute_texture_bind_group_layout(
+    device: &wgpu::Device
+) -> wgpu::BindGroupLayout {
+    device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor{
+        label: Some("Compute Texture Bind Group Layout"),
+        entries: &[
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::StorageTexture {
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    access: wgpu::StorageTextureAccess::WriteOnly,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                },
+                count: None,
+            },
+        ]
+    })
+}
+
+pub fn create_compute_texture_bind_group(
+    device: &wgpu::Device, 
+    texture_view: &wgpu::TextureView
+) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
+    let layout = create_compute_texture_bind_group_layout(device);
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor{
+        label: Some("Compute Texture Bind Group"),
+        layout: &layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&texture_view),
+            }
+        ]
+    });
+    (layout, bind_group)
+}
+
 fn create_texture_bind_group_layout(
     device: &wgpu::Device, 
     img_files:Vec<&str>
