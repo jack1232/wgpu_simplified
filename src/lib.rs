@@ -5,7 +5,7 @@ use std::time::{Instant, Duration};
 use std::f32::consts::PI;
 use cgmath::*;
 use rand::{SeedableRng, rngs::StdRng,distributions::{Distribution, Uniform}};
-mod texture_data;
+pub mod texture_data;
 
 #[rustfmt::skip]
 #[allow(unused)]
